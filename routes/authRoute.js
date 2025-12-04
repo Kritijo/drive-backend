@@ -1,14 +1,12 @@
 const { Router } = require("express");
 const authRouter = Router();
 
-const formController = require("../controllers/formController");
+const auth = require("../controllers/authController");
 const signUpValidation = require("../config/signUpValidation");
 
-authRouter.get("/signup", formController.getSignUp);
-authRouter.post("/signup", signUpValidation, formController.postSignUp);
-
-authRouter.get("/login", formController.getLogIn);
-authRouter.post("/login", formController.postLogIn);
-authRouter.get("/logout", formController.logOut);
+authRouter.post("/signup", signUpValidation, auth.signUp);
+authRouter.post("/login", auth.logIn);
+authRouter.post("/logout", auth.logOut);
+authRouter.get("/user", auth.user);
 
 module.exports = authRouter;
