@@ -12,10 +12,21 @@ model User{
   id         Int      @id @default(autoincrement())
   name       String
   email      String   @unique
-  password   String 
+  password   String? 
 
   files      File[]
   folders    Folder[]
+  accounts   Account[]
+}
+
+model Account {
+  id                String   @id @default(uuid())
+  provider          String
+  providerAccountId String   
+  userId            Int
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerAccountId])
 }
 
 model File{
