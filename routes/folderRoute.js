@@ -3,23 +3,19 @@ const folderRouter = Router();
 
 const folderController = require("../controllers/folderController");
 
-folderRouter.get("/upload-folder", folderController.getFolderUpload);
-folderRouter.post("/upload-folder", folderController.postFolderUpload);
+folderRouter.get("/", folderController.listFolders);
+folderRouter.post("/", folderController.uploadFolder);
 
-folderRouter.get("/folder/:folderId", folderController.viewFolder);
+// folderRouter.get("/folder/:folderId", folderController.viewFolder);
 
-folderRouter.get(
-    "/folder/:folderId/upload-folder",
-    folderController.getFolderUpload
-);
-folderRouter.post(
-    "/folder/:folderId/upload-folder",
-    folderController.postFolderUpload
-);
+// folderRouter.post(
+//     "/folder/:folderId/upload-folder",
+//     folderController.uploadFolder
+// );
 
-folderRouter.post("/delete-folder/:folderId", folderController.deleteFolder);
+// folderRouter.post("/delete-folder/:folderId", folderController.deleteFolder);
 
-folderRouter.get("/folder/:folderId/update", folderController.getEditFolder);
-folderRouter.post("/folder/:folderId/update", folderController.postEditFolder);
+// folderRouter.get("/folder/:folderId/update", folderController.getEditFolder);
+// folderRouter.post("/folder/:folderId/update", folderController.postEditFolder);
 
 module.exports = folderRouter;

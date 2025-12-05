@@ -5,6 +5,8 @@ const express = require("express");
 const app = express();
 const auth = require("./routes/authRoute");
 const oauth = require("./routes/oAuthRoute");
+const file = require("./routes/fileRoute");
+const folder = require("./routes/folderRoute");
 
 const session = require("./config/session.js");
 app.use(session);
@@ -26,6 +28,8 @@ app.use(express.json());
 
 app.use("/api/v1/auth", auth);
 app.use("/api/v1/oauth", oauth);
+app.use("/api/v1/file", file);
+app.use("/api/v1/folder", folder);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
