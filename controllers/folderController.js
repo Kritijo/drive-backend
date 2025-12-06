@@ -1,13 +1,26 @@
 const prisma = require("../config/prisma");
 
-exports.listFolders = async (req, res) => {
+exports.listItems = async (req, res) => {
   try {
+    const folderIdParam = req.params.folderId;
+    const folderId = folderIdParam ? parseInt(folderIdParam) : null;
+    const userId = req.user.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
     const folders = await prisma.folder.findMany({
-      where: { userId: req.user.id, parentId: null },
+      where: { userId, parentId: folderId },
     });
-    res.status(200).json({ success: true, folders });
+
+    const files = await prisma.file.findMany({
+      where: { userId, folderId: folderId },
+    });
+
+    res.json({ success: true, folders, files });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Server error." });
+    res.status(500).json({ success: false, message: "Server error" });
+    console.error(err);
   }
 };
 
@@ -16,6 +29,10 @@ exports.uploadFolder = async (req, res) => {
     const folderIdParam = req.params.folderId;
     const folderId = folderIdParam ? parseInt(folderIdParam) : null;
     const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
     const folderName = req.body.foldername;
 
@@ -28,7 +45,7 @@ exports.uploadFolder = async (req, res) => {
     });
 
     if (existingFolder) {
-      res
+      return res
         .status(400)
         .json({ success: false, message: "Folder name already exists." });
     }
@@ -45,77 +62,18 @@ exports.uploadFolder = async (req, res) => {
       .json({ success: true, message: "Folder created successfully." });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
+    console.error(err);
   }
 };
 
-exports.viewFolder = async (req, res, next) => {
-  try {
-    if (!req.user) {
-      return res.redirect("/login");
-    }
-
-    const folderId = parseInt(req.params.folderId);
-
-    const folder = await prisma.folder.findUnique({
-      where: {
-        id: folderId,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-
-    const files = await prisma.file.findMany({
-      where: {
-        userId: req.user.id,
-        folderId: folderId,
-      },
-    });
-
-    const folders = await prisma.folder.findMany({
-      where: {
-        userId: req.user.id,
-        parentId: folderId,
-      },
-    });
-
-    res.render("index", {
-      folders,
-      folderId: folder.id,
-      folderName: folder.name,
-      files,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.getEditFolder = async (req, res, next) => {
-  try {
-    const folderId = parseInt(req.params.folderId);
-    const folder = await prisma.folder.findUnique({
-      where: {
-        id: folderId,
-      },
-      select: {
-        name: true,
-      },
-    });
-    res.render("upload-folder", {
-      folderId,
-      folderName: folder.name,
-      edit: true,
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-exports.postEditFolder = async (req, res, next) => {
+exports.editFolder = async (req, res) => {
   try {
     const folderId = parseInt(req.params.folderId);
     const folderName = req.body.foldername;
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
     await prisma.folder.update({
       where: {
@@ -125,9 +83,10 @@ exports.postEditFolder = async (req, res, next) => {
         name: folderName,
       },
     });
-    res.redirect("/");
+    res.json({ success: true, message: "Folder renamed successfully." });
   } catch (err) {
-    next(err);
+    res.status(500).json({ success: false, message: "Server error." });
+    console.error(err);
   }
 };
 
@@ -164,15 +123,18 @@ const deleteFilesInFolders = async (folderIds, userId) => {
       .remove(pathsToDelete);
 
     if (error) {
-      console.warn("Supabase deletion error:", error.message);
+      throw new Error("Failed to delete files from storage.");
     }
   }
 };
 
-exports.deleteFolder = async (req, res, next) => {
+exports.deleteFolder = async (req, res) => {
   try {
     const folderId = parseInt(req.params.folderId);
     const userId = req.user.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
 
     const folderIds = await getAllDescendantFolderIds(folderId);
 
@@ -184,8 +146,9 @@ exports.deleteFolder = async (req, res, next) => {
         userId: userId,
       },
     });
-    res.redirect("/");
+    res.json({ success: true, message: "Folder deleted successfully." });
   } catch (err) {
-    next(err);
+    res.status(500).json({ success: false, message: "Server error." });
+    console.error(err);
   }
 };

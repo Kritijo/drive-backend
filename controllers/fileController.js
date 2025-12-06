@@ -4,12 +4,16 @@ const { upload } = require("../config/multer");
 
 exports.listFiles = async (req, res) => {
   try {
+    if (!req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
     const files = await prisma.file.findMany({
       where: { userId: req.user.id },
     });
     res.status(200).json({ success: true, files });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
+    console.error(err);
   }
 };
 
@@ -18,6 +22,11 @@ exports.uploadFile = [
 
   async (req, res) => {
     try {
+      if (!req.user.id) {
+        return res
+          .status(401)
+          .json({ success: false, message: "Unauthorized." });
+      }
       const file = req.file;
       const folderIdParam = req.params.folderId;
       const folderId = folderIdParam ? parseInt(folderIdParam) : null;
@@ -57,29 +66,16 @@ exports.uploadFile = [
         .json({ success: true, message: "File uploaded successfully." });
     } catch (err) {
       res.status(500).json({ success: false, message: "Server error." });
+      console.error(err);
     }
   },
 ];
 
-exports.viewFile = async (req, res) => {
-  const file = await prisma.file.findUnique({
-    where: { id: parseInt(req.params.id), userId: req.user.id },
-  });
-
-  const { data, error } = await supabase.storage
-    .from("files")
-    .createSignedUrl(file.url, 60 * 5);
-
-  if (error)
-    return res
-      .status(500)
-      .json({ success: false, message: "Error generating signed URL." });
-
-  res.status(200).json({ success: true, url: data.signedUrl });
-};
-
 exports.deleteFile = async (req, res) => {
   try {
+    if (!req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
     const fileid = parseInt(req.params.id);
 
     const fileRecord = await prisma.file.findUnique({
@@ -97,45 +93,44 @@ exports.deleteFile = async (req, res) => {
       },
     });
 
-    await supabase.storage.from("uploads").remove([fileRecord.url]);
+    await supabase.storage.from("files").remove([fileRecord.url]);
 
     res
       .status(200)
       .json({ success: true, message: "File deleted successfully." });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
+    console.error(err);
   }
 };
 
-exports.downloadFile = async (req, res, next) => {
-  const axios = require("axios");
-
+exports.getFile = async (req, res) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
     const file = await prisma.file.findUnique({
       where: { id: parseInt(req.params.id), userId: req.user.id },
     });
+
     if (!file) {
-      const error = new Error("File not found.");
-      error.status = 404;
-      return next(error);
+      return res
+        .status(404)
+        .json({ success: false, message: "File not found." });
     }
 
     const { data, error } = await supabase.storage
-      .from("uploads")
+      .from("files")
       .createSignedUrl(file.url, 60);
 
-    if (error) return next(error);
+    if (error)
+      return res
+        .status(500)
+        .json({ success: false, message: "Error generating signed URL." });
 
-    const fileStream = await axios({
-      method: "GET",
-      url: data.signedUrl,
-      responseType: "stream",
-    });
-
-    res.setHeader("Content-Disposition", `attachment; filename="${file.name}"`);
-
-    fileStream.data.pipe(res);
+    res.status(200).json({ success: true, signedUrl: data.signedUrl });
   } catch (err) {
-    next(err);
+    res.status(500).json({ success: false, message: "Server error." });
+    console.error(err);
   }
 };
